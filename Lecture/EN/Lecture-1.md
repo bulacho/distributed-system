@@ -35,7 +35,7 @@ In repo is mostly about infrastructure services. e.g storage for big web sites, 
 
 ## 2. Main Topics
 
-This is a course about infrastructure for applications.
+This is a repo about infrastructure for applications.
 > - Storage.
 > - Communication.
 > - Computation.
