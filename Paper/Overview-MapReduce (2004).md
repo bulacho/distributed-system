@@ -76,7 +76,7 @@
 
 ### 3.1. Tổng quan về thực thi
 > - Các lời gọi Map được phân phối trên nhiều máy bằng cách tự động phân vùng dữ liệu đầu vào thành một tập hợp các phần M. Các phần đầu vào có thể được xử lý song song bởi các máy khác nhau. Các lời gọi Reduce được phân phối bằng cách phân vùng không gian khóa trung gian thành R phần bằng cách sử dụng một hàm phân vùng (ví dụ: hash(key) mod R). Số lượng phân vùng (R) và hàm phân vùng được chỉ định bởi người dùng.
-![alt text](/image/execution-overview-MapReduce(2004).png)
+![alt text](/image/figure-1-MapReduce(2004).png)
 Hình 1: Execution overview
 > - Hình 1 cho thấy luồng tổng thể của một hoạt động MapReduce trong triển khai. Khi chương trình người dùng gọi hàm MapReduce, chuỗi các hành động sau sẽ xảy ra (các nhãn được đánh số trong Hình 1 tương ứng với các số trong danh sách dưới đây):
 >> - 1. Thư viện MapReduce trong chương trình người dùng đầu tiên chia các tệp đầu vào thành M phần, mỗi phần thường có kích thước từ 16 megabyte đến 64 megabyte (MB) (có thể điều chỉnh bởi người dùng thông qua một tham số tùy chọn). Sau đó, nó khởi động nhiều bản sao của chương trình trên một cụm máy.
@@ -156,3 +156,74 @@ Hình 1: Execution overview
 ### 4.8. Thông tin trạng thái
 > - Master chạy một máy chủ HTTP nội bộ và xuất một tập hợp các trang trạng thái cho ta sử dụng. Các trang trạng thái hiển thị tiến trình của tính toán, chẳng hạn như có bao nhiêu tác vụ đã hoàn thành, bao nhiêu đang tiến hành, số byte đầu vào, số byte dữ liệu trung gian, số byte đầu ra, tốc độ xử lý, v.v. Các trang cũng chứa các liên kết đến các tệp lỗi chuẩn và đầu ra chuẩn được tạo ra bởi mỗi tác vụ. Người dùng có thể sử dụng dữ liệu này để dự đoán thời gian tính toán sẽ mất bao lâu, và liệu có nên thêm tài nguyên vào tính toán hay không. Các trang này cũng có thể được sử dụng để xác định khi nào tính toán chậm hơn nhiều so với dự kiến.
 > - Ngoài ra, trang trạng thái cấp cao nhất hiển thị các worker đã thất bại, và các tác vụ map và reduce mà họ đang xử lý khi họ thất bại. Thông tin này hữu ích khi cố gắng chẩn đoán lỗi trong mã người dùng.
+
+### 4.9. Counter
+> - Thư viện MapReduce cung cấp một cơ sở bộ đếm để đếm số lần xuất hiện của các sự kiện khác nhau. Ví dụ, mã người dùng có thể muốn đếm tổng số từ được xử lý hoặc số lượng tài liệu tiếng Đức được lập chỉ mục, v.v.
+> - Để sử dụng cơ sở này, mã người dùng tạo một đối tượng bộ đếm có tên và sau đó tăng bộ đếm một cách thích hợp trong hàm Map và/hoặc Reduce. Ví dụ:
+```cpp
+Counter* uppercase;
+uppercase = GetCounter("uppercase");
+
+map(String name, String contents):
+  for each word w in contents:
+    if (IsCapitalized(w)):
+      uppercase->Increment();
+    EmitIntermediate(w, "1");
+```
+> - Các giá trị bộ đếm từ các máy worker riêng lẻ được truyền định kỳ đến master (được đính kèm vào phản hồi ping). Master tổng hợp các giá trị bộ đếm từ các tác vụ map và reduce thành công và trả lại chúng cho mã người dùng khi hoạt động MapReduce hoàn thành. Các giá trị bộ đếm hiện tại cũng được hiển thị trên trang trạng thái của master để con người có thể theo dõi tiến trình của tính toán trực tiếp. Khi tổng hợp các giá trị bộ đếm, master loại bỏ các tác động của các lần thực thi trùng lặp của cùng một tác vụ map hoặc reduce để tránh đếm hai lần. (Các lần thực thi trùng lặp có thể phát sinh từ việc sử dụng các tác vụ dự phòng và từ việc thực thi lại các tác vụ do lỗi).
+> - Một số giá trị bộ đếm được duy trì tự động bởi thư viện MapReduce, chẳng hạn như số lượng cặp khóa/giá trị đầu vào được xử lý và số lượng cặp khóa/giá trị đầu ra được tạo ra.
+> - Người dùng thấy cơ sở bộ đếm hữu ích để kiểm tra tính hợp lý của hành vi của các hoạt động MapReduce. Ví dụ, trong một số hoạt động MapReduce, mã người dùng có thể muốn đảm bảo rằng số lượng cặp đầu ra được tạo ra chính xác bằng với số lượng cặp đầu vào được xử lý, hoặc rằng tỷ lệ phần trăm tài liệu tiếng Đức được xử lý nằm trong một tỷ lệ chấp nhận được của tổng số tài liệu được xử lý.
+
+## 5. Performance
+> - Trong phần này, tác giả đo lường hiệu suất của MapReduce trên hai tính toán chạy trên một cụm máy lớn. Một tính toán tìm kiếm qua khoảng một terabyte dữ liệu để tìm một mẫu cụ thể. Tính toán còn lại sắp xếp khoảng một terabyte dữ liệu.
+> - Hai chương trình này đại diện cho một tập hợp lớn các chương trình thực tế được viết bởi người dùng MapReduce - một lớp chương trình chuyển dữ liệu từ một biểu diễn này sang một biểu diễn khác, và một lớp khác trích xuất một lượng nhỏ dữ liệu thú vị từ một tập dữ liệu lớn.
+
+### 5.1. Cấu hình Cluster
+> - Tất cả các chương trình được thực thi trên một cụm gồm khoảng 1800 máy. Mỗi máy có hai bộ xử lý Intel Xeon 2GHz với Hyper-Threading được bật, 4GB bộ nhớ, hai đĩa IDE 160GB, và một liên kết Ethernet gigabit. Các máy chủ được sắp xếp trong một mạng chuyển mạch hình cây hai cấp với băng thông tổng hợp khoảng 100-200 Gbps tại gốc. Tất cả các máy đều ở cùng một cơ sở lưu trữ và do đó thời gian vòng lặp giữa bất kỳ cặp máy nào là dưới một mili giây.
+
+### 5.2. Grep
+
+![alt text](/image/figure-2-MapReduce(2004).png)
+> - Chương trình grep quét qua 10 mũ 10 bản ghi 100 byte, tìm kiếm một mẫu ba ký tự tương đối hiếm (mẫu xuất hiện trong 92.337 bản ghi). Đầu vào được chia thành các phần khoảng 64MB (M = 15000), và toàn bộ đầu ra được đặt trong một tệp (R = 1).
+> - Hình 2 cho thấy tiến trình của tính toán theo thời gian. Trục Y hiển thị tốc độ mà dữ liệu đầu vào được quét. Tốc độ dần dần tăng lên khi nhiều máy hơn được chỉ định cho tính toán MapReduce này, và đạt đỉnh trên 30 GB/s khi 1764 worker đã được chỉ định. Khi các tác vụ map hoàn thành, tốc độ bắt đầu giảm và đạt mức không khoảng 80 giây vào tính toán. Toàn bộ tính toán mất khoảng 150 giây từ khi bắt đầu đến khi kết thúc. Điều này bao gồm khoảng một phút chi phí khởi động. Chi phí này là do việc truyền chương trình đến tất cả các máy worker, và các độ trễ tương tác với GFS để mở tập hợp 1000 tệp đầu vào và lấy thông tin cần thiết cho tối ưu hóa địa phương.
+
+### 5.3. Sort
+![alt text](/image/figure-3-MapReduce(2004).png)
+> - Chương trình Sort sắp xếp 10 mũ 10 bản ghi 100-byte. Chương trình là mô phỏng theo chuẩn TeraSort.
+> - Chương trình sắp xếp bao gồm ít hơn 50 dòng code người dùng. Hàm Map gồm 3 dòng trích xuất một khóa sắp xếp 10-byte từ 1 dòng text và đưa ra khóa và dòng văn bản gốc dưới dạng cặp key/value. Tác giả sử dụng 1 hàm nhận diện tích hợp Reduce. Hàm này chuyển cặp key/value trung gian không thay đổi thành đầu ra cặp key/value. Đầu ra cuối cùng được ghi vào một tập hợp các tệp GFS sao chép hai chiều (tức là, 2 terabyte được ghi dưới dạng đầu ra của chương trình).
+> - Như trước đây, dữ liệu đầu vào được chia thành các phần 64MB (M = 15000). Tác giả phân vùng đầu ra đã sắp xếp thành 4000 tệp (R = 4000). Hàm phân vùng sử dụng các byte ban đầu của khóa để phân chia nó thành một trong các phần R.
+> - Hàm phân vùng cho chuẩn này có kiến thức tích hợp về phân phối các khóa. Trong một chương trình sắp xếp chung, tác giả sẽ thêm một hoạt động MapReduce trước đó để thu thập một mẫu của các khóa và sử dụng phân phối của các khóa mẫu để tính toán các điểm chia cho lần sắp xếp cuối cùng.
+> - Hình 3(a) cho thấy tiến trình của 1 hoạt động bình của chương trình sắp xếp. Biểu đồ trên cùng bên trái hiển thị tốc độ mà đầu vào được đọc. Tốc độ đạt đỉnh khoảng 13 GB/s và giảm dần khá nhanh vì tất cả các tác vụ map hoàn thành trước khi 200 giây trôi qua. Lưu ý rằng tốc độ đầu vào thấp hơn cho grep. Điều này là do các tác vụ sắp xếp map tốn khoảng nửa thời gian của chúng và băng thông I/O để ghi đầu ra trung gian vào đĩa cục bộ. Đầu ra trung gian tương ứng cho grep có kích thước không đáng kể.
+> - Biểu đồ giữa bên trái hiển thị tốc độ mà dữ liệu được gửi qua mạng từ tác vụ task đến tác vụ reduce. Việc chuyển tác vụ bắt đầu ngay khi tác vụ map đầu tiên được hoàn thành. Đỉnh đầu tiên trong biểu đồ là cho batch đầu tiên của khoảng 1700 tác vụ reduce (toàn bộ MapReduce được chỉ định khoảng 1700 máy, và mỗi máy thực hiện tối đa một tác vụ reduce tại một thời điểm). hoảng 300 giây vào tính toán, một số tác vụ reduce của lô đầu tiên hoàn thành và bắt đầu chuyển dữ liệu cho các tác vụ reduce còn lại. Tất cả việc chuyển dữ liệu hoàn thành khoảng 600 giây vào tính toán.
+> - Biểu đồ dưới cùng bên trái hiển thị tốc độ mà dữ liệu đã sắp xếp được ghi vào các tệp đầu ra cuối cùng bởi các tác vụ reduce. Có một độ trễ giữa kết thúc giai đoạn chuyển dữ liệu đầu tiên và bắt đầu giai đoạn ghi vì các máy bận sắp xếp dữ liệu trung gian. Việc ghi tiếp tục với tốc độ khoảng 2-4 GB/s trong một thời gian. Tất cả các việc ghi hoàn thành khoảng 850 giây vào tính toán. Bao gồm chi phí khởi động, toàn bộ tính toán mất 891 giây. Điều này tương tự với kết quả tốt nhất hiện tại được báo cáo là 1057 giây cho chuẩn TeraSort.
+> - Một vài điều cần lưu ý: tốc độ đầu vào cao hơn tốc độ chuyển dữ liệu và tốc độ đầu ra vì tối ưu hóa trên local - hầu hết dữ liệu được đọc từ đĩa cục bộ và bỏ qua mạng tương đối hạn chế về băng thông. Tốc độ chuyển dữ liệu cao hơn tốc độ đầu ra vì giai đoạn đầu ra ghi hai bản sao của dữ liệu đã sắp xếp (tác giả tạo hai bản sao của đầu ra vì lý do độ tin cậy và khả dụng). Tác giả ghi hai bản sao vì đó là cơ chế để đảm bảo độ tin cậy và khả dụng được cung cấp bởi hệ thống tệp cơ bản. Yêu cầu băng thông mạng để ghi dữ liệu sẽ giảm nếu hệ thống tệp cơ bản sử dụng mã hóa xóa thay vì sao chép.
+
+### 5.4. Effect of Backup Tasks
+> - Trong hình 3(b), thể hiện 1 hoạt động của chương trình sắp xếp với tác vụ backup đã tắt. Luồng thực thi là như nhau được thể hiện trong hình 3(a), trừ việc đó là 1 thời gian dài không có hoạt động ghi nào xảy ra. Sau 960s, tất cả trừ 5 tác vụ reduce đã hoàn thành. Mất 300s để những tác vụ cuối cùng hoàn thành. Toàn bộ tính toán mất 1283 giây, tăng 44% về thời gian trôi qua.
+
+### 5.5. Machine Failures
+> - Trong hình 3(c), thể hiện 1 hoạt động của chương trình sắp xếp khi tác giả đã tắt 200 trong 1796 worker trong vài phút. Hệ thống lập lịch cụm cơ bản ngay lập tức khởi động lại các quy trình worker mới trên các máy này (vì chỉ có các quy trình bị giết, các máy vẫn hoạt động bình thường).
+> - Các lỗi worker xuất hiện dưới dạng tốc độ đầu vào âm vì một số công việc map đã hoàn thành trước đó biến mất (vì các worker map tương ứng đã bị giết) và cần phải được thực hiện lại. Việc thực hiện lại công việc map này diễn ra tương đối nhanh chóng. Toàn bộ tính toán hoàn thành trong 933 giây bao gồm chi phí khởi động (chỉ tăng 5% so với thời gian thực thi bình thường).
+
+## 6. Kinh nghiệm
+> - Tác giả viết chương trình đầu tiên của thư viện MapReduce vào tháng 2 năm 2003, và đã thực hiện cải tiến đáng kế vào tháng 8 năm 2003, bao gồm tối ưu local, cân bằng tải động của tác vụ thực thi trên các máy chủ worker,... Kể từ thời điểm đó, tác giả thấy rất ngạc nhiên về mức độ trải dài của thư viện MapReduce cho các vấn đề mà tác giả đang làm việc. Thư viện đã được sử dụng trải dài trong nhiều lĩnh vực trong google, bao gồm:
+>> - Các vấn đề học máy quy mô lớn
+>> - Các vấn đề phân cụm cho các sản phẩm Google News và Froogle
+>> - Trích xuất dữ liệu lớn sử dụng để tạo ra các báo cái về truy vấn phổ biến (vd: Google Zeitgeist)
+>> - Trích xuất của thông tin web cho những thí nghiệm và sản phẩm mới
+>> - Các tính toán đồ thị quy mô lớn
+
+![alt text](/image/figure-4-MapReduce(2004).png)
+
+> - Hình 4 thể hiện sử tăng trưởng đáng kể về số lượng các chương trình MapReduce riêng biệt được kiểm tra vào hệ thống quản lý mã nguồn của tác gia theo thời gian, từ 0 vào đầu năm 2003 đến 900 trường hợp riêng biệt vào cuối tháng 11 năm 2004. MapReduce đã thành công bởi vì nó cho phép  có thể viết một chương đơn giản và chạy nó hiệu quả trên hàng nghìn máy chủ trong vòng nửa giờ, tăng tốc đáng kể chu kỳ phát triển và thử nghiệm. Hơn nữa, nó cho phép các lập trình viên không có kinh nghiệm với các hệ thống phân tán và/hoặc song song dễ dàng tận dụng lượng tài nguyên lớn.
+
+### 6.1. Lập chỉ mục quy mô lớn
+> - Một trong những ứng dụng quan trọng nhất của MapReduce cho đến nay là việc viết lại hoàn toàn hệ thống lập chỉ mục sản xuất tạo ra các cấu trúc dữ liệu được sử dụng cho dịch vụ tìm kiếm web của Google. Hệ thống lập chỉ mục nhận đầu vào là một tập hợp lớn các tài liệu đã được hệ thống thu thập lấy về, được lưu trữ dưới dạng một tập hợp các tệp GFS. Nội dung thô của các tài liệu này là hơn 20 terabyte dữ liệu. Quá trình lập chỉ mục chạy dưới dạng một chuỗi từ năm đến mười hoạt động MapReduce. Sử dụng MapReduce (thay vì các bước phân tán ad-hoc trong phiên bản trước của hệ thống lập chỉ mục) đã mang lại một số lợi ích:
+>> - Mã lập chỉ mục đơn giản hơn, nhỏ hơn và dễ hiểu hơn, vì mã xử lý khả năng chịu lỗi, phân phối và song song được ẩn trong thư viện MapReduce. Ví dụ, kích thước của một giai đoạn tính toán giảm từ khoảng 3800 dòng mã C++ xuống còn khoảng 700 dòng khi được biểu diễn bằng MapReduce.
+>> - Hiệu suất của thư viện MapReduce đủ tốt để có thể giữ các tính toán không liên quan về mặt khái niệm riêng biệt, thay vì trộn chúng lại với nhau để tránh các bước bổ sung qua dữ liệu. Điều này làm cho việc thay đổi quá trình lập chỉ mục trở nên dễ dàng. Ví dụ, một thay đổi mất vài tháng để thực hiện trong hệ thống lập chỉ mục cũ chỉ mất vài ngày để triển khai trong hệ thống mới.
+>> - Quá trình lập chỉ mục trở nên dễ dàng hơn nhiều để vận hành, vì hầu hết các vấn đề gây ra bởi lỗi máy, máy chậm và sự cố mạng được xử lý tự động bởi thư viện MapReduce mà không cần can thiệp của người vận hành. Hơn nữa, việc cải thiện hiệu suất của quá trình lập chỉ mục bằng cách thêm các máy mới vào cụm lập chỉ mục trở nên dễ dàng.
+
+### 7. Related Word
+### 8. Kết luận
+> - Mô hình lập trình MapReduce đã được sử dụng thành công tại Google cho nhiều mục đích khác nhau. Tác giả cho rằng sự thành công này đến từ một số lý do. Thứ nhất, mô hình này dễ sử dụng, ngay cả đối với các lập trình viên không có kinh nghiệm với các hệ thống phân tán và song song, vì nó ẩn đi các chi tiết về song song hóa, khả năng chịu lỗi, tối ưu hóa địa phương và cân bằng tải. Thứ hai, một loạt các vấn đề có thể dễ dàng được biểu diễn dưới dạng các tính toán MapReduce. Ví dụ, MapReduce được sử dụng để tạo ra dữ liệu cho dịch vụ tìm kiếm web của Google, để sắp xếp, khai thác dữ liệu, học máy và nhiều hệ thống khác. Thứ ba, tác giả và cộng sự đã phát triển một triển khai của MapReduce có thể mở rộng đến các cụm máy lớn bao gồm hàng nghìn máy. Triển khai này sử dụng hiệu quả các tài nguyên máy và do đó phù hợp để sử dụng cho nhiều vấn đề tính toán lớn gặp phải tại Google.
+> - Tác giả đã học được một số điều từ công việc này. Thứ nhất, việc hạn chế mô hình lập trình làm cho việc song song hóa và phân phối các tính toán trở nên dễ dàng và làm cho các tính toán này chịu lỗi. Thứ hai, băng thông mạng là một tài nguyên khan hiếm. Do đó, một số tối ưu hóa trong hệ thống nhằm giảm lượng dữ liệu được gửi qua mạng: tối ưu hóa địa phương cho phép đọc dữ liệu từ các đĩa cục bộ và việc ghi một bản sao duy nhất của dữ liệu trung gian vào đĩa cục bộ tiết kiệm băng thông mạng. Thứ ba, thực thi dư thừa có thể được sử dụng để giảm tác động của các máy chậm và để xử lý các lỗi máy và mất dữ liệu.
