@@ -78,7 +78,7 @@ A big goal: hide the complexity of distribution from applications.
 > - Mr manages, and hides, all aspects of distributions!
 
 #### Abstract view of a MapReduce jon -- word count
-![alt text](image.png)
+![alt text](/image/lecture-1-map-reduce-overview.png)
 
 1. Input is (already) split into M pieces
 2. MR calls Map() for each input split, produces list of k,v pairs "intermediate" data each Map() call is a "task"
@@ -86,15 +86,16 @@ A big goal: hide the complexity of distribution from applications.
 4. Final output is set of <k,v> pairs from Reduce()s
 
 #### Word-count code
-> - Map(d)
->>>>> chop d into words
-
->>>>> for each word w
-
->>>>>>>> emit(w, "1")
-
-> - Reduce(k, v[])
->>>>> emit(len(v[]))
+``` 
+Map(d)
+chop d into words
+  for each word w
+    emit(w, "1")
+```
+```
+Reduce(k, v[])
+  emit(len(v[]))
+```
 
 #### MapReduce scales well:
 > - N "worker" computers (might) get you Nx throughput. Map()s can run in parallel, since they don't interact. Same for Reduce()s.
