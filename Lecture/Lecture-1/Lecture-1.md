@@ -78,7 +78,7 @@ A big goal: hide the complexity of distribution from applications.
 > - Mr manages, and hides, all aspects of distributions!
 
 #### Abstract view of a MapReduce jon -- word count
-![alt text](/image/lecture-1-map-reduce-overview.png)
+![alt text](/resource/image/lecture-1-map-reduce-overview.png)
 
 1. Input is (already) split into M pieces
 2. MR calls Map() for each input split, produces list of k,v pairs "intermediate" data each Map() call is a "task"

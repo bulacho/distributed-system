@@ -77,7 +77,7 @@ Mục tiêu lớn: Che dấu độ phức tạp của hệ thống phân tán kh
 > - MapReduce Coodinator quản lý, và ẩn dấu tất cả khía cạnh của hệ thống phân tán
 
 #### MapReduce - wordcount
-![alt text](/image/lecture-1-map-reduce-overview.png)
+![alt text](/resource/image/lecture-1-map-reduce-overview.png)
 
 1. Đầu vào được chia thành M phần.
 2. MR Coodinator gọi hàm Map() với từng đầu vào đã được chia, tạo danh. sách các cặp k,v dữ liệu "trung gian". Mỗi lệnh gọi hàm Map() là 1 "task".

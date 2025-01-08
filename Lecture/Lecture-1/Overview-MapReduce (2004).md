@@ -76,7 +76,7 @@
 
 ### 3.1. Tổng quan về thực thi
 > - Các lời gọi Map được phân phối trên nhiều máy bằng cách tự động phân vùng dữ liệu đầu vào thành một tập hợp các phần M. Các phần đầu vào có thể được xử lý song song bởi các máy khác nhau. Các lời gọi Reduce được phân phối bằng cách phân vùng không gian khóa trung gian thành R phần bằng cách sử dụng một hàm phân vùng (ví dụ: hash(key) mod R). Số lượng phân vùng (R) và hàm phân vùng được chỉ định bởi người dùng.
-![alt text](/image/figure-1-MapReduce(2004).png)
+![alt text](/resource/image/MapReduce(2004)-figure-1.png)
 Hình 1: Execution overview
 > - Hình 1 cho thấy luồng tổng thể của một hoạt động MapReduce trong triển khai. Khi chương trình người dùng gọi hàm MapReduce, chuỗi các hành động sau sẽ xảy ra (các nhãn được đánh số trong Hình 1 tương ứng với các số trong danh sách dưới đây):
 >> - 1. Thư viện MapReduce trong chương trình người dùng đầu tiên chia các tệp đầu vào thành M phần, mỗi phần thường có kích thước từ 16 megabyte đến 64 megabyte (MB) (có thể điều chỉnh bởi người dùng thông qua một tham số tùy chọn). Sau đó, nó khởi động nhiều bản sao của chương trình trên một cụm máy.
@@ -183,12 +183,12 @@ map(String name, String contents):
 
 ### 5.2. Grep
 
-![alt text](/image/figure-2-MapReduce(2004).png)
+![alt text](/resource/image/MapReduce(2004)-figure-2.png)
 > - Chương trình grep quét qua 10 mũ 10 bản ghi 100 byte, tìm kiếm một mẫu ba ký tự tương đối hiếm (mẫu xuất hiện trong 92.337 bản ghi). Đầu vào được chia thành các phần khoảng 64MB (M = 15000), và toàn bộ đầu ra được đặt trong một tệp (R = 1).
 > - Hình 2 cho thấy tiến trình của tính toán theo thời gian. Trục Y hiển thị tốc độ mà dữ liệu đầu vào được quét. Tốc độ dần dần tăng lên khi nhiều máy hơn được chỉ định cho tính toán MapReduce này, và đạt đỉnh trên 30 GB/s khi 1764 worker đã được chỉ định. Khi các tác vụ map hoàn thành, tốc độ bắt đầu giảm và đạt mức không khoảng 80 giây vào tính toán. Toàn bộ tính toán mất khoảng 150 giây từ khi bắt đầu đến khi kết thúc. Điều này bao gồm khoảng một phút chi phí khởi động. Chi phí này là do việc truyền chương trình đến tất cả các máy worker, và các độ trễ tương tác với GFS để mở tập hợp 1000 tệp đầu vào và lấy thông tin cần thiết cho tối ưu hóa địa phương.
 
 ### 5.3. Sort
-![alt text](/image/figure-3-MapReduce(2004).png)
+![alt text](/resource/image/MapReduce(2004)-figure-3.png)
 > - Chương trình Sort sắp xếp 10 mũ 10 bản ghi 100-byte. Chương trình là mô phỏng theo chuẩn TeraSort.
 > - Chương trình sắp xếp bao gồm ít hơn 50 dòng code người dùng. Hàm Map gồm 3 dòng trích xuất một khóa sắp xếp 10-byte từ 1 dòng text và đưa ra khóa và dòng văn bản gốc dưới dạng cặp key/value. Tác giả sử dụng 1 hàm nhận diện tích hợp Reduce. Hàm này chuyển cặp key/value trung gian không thay đổi thành đầu ra cặp key/value. Đầu ra cuối cùng được ghi vào một tập hợp các tệp GFS sao chép hai chiều (tức là, 2 terabyte được ghi dưới dạng đầu ra của chương trình).
 > - Như trước đây, dữ liệu đầu vào được chia thành các phần 64MB (M = 15000). Tác giả phân vùng đầu ra đã sắp xếp thành 4000 tệp (R = 4000). Hàm phân vùng sử dụng các byte ban đầu của khóa để phân chia nó thành một trong các phần R.
@@ -213,7 +213,7 @@ map(String name, String contents):
 >> - Trích xuất của thông tin web cho những thí nghiệm và sản phẩm mới
 >> - Các tính toán đồ thị quy mô lớn
 
-![alt text](/image/figure-4-MapReduce(2004).png)
+![alt text](/resource/image/MapReduce(2004)-figure-4.png)
 
 > - Hình 4 thể hiện sử tăng trưởng đáng kể về số lượng các chương trình MapReduce riêng biệt được kiểm tra vào hệ thống quản lý mã nguồn của tác gia theo thời gian, từ 0 vào đầu năm 2003 đến 900 trường hợp riêng biệt vào cuối tháng 11 năm 2004. MapReduce đã thành công bởi vì nó cho phép  có thể viết một chương đơn giản và chạy nó hiệu quả trên hàng nghìn máy chủ trong vòng nửa giờ, tăng tốc đáng kể chu kỳ phát triển và thử nghiệm. Hơn nữa, nó cho phép các lập trình viên không có kinh nghiệm với các hệ thống phân tán và/hoặc song song dễ dàng tận dụng lượng tài nguyên lớn.
 
